@@ -1,0 +1,17 @@
+_core:
+  default_config_hash: uEePITI9tV6WqzmsTb7MfPCi5yPWXSxAN1xeLcYFQbM
+session:
+  parameter: language
+url:
+  source: path_prefix
+  prefixes:
+    en: ''
+    uz-ru: uz-ru
+    uz-uz: uz-uz
+    uz-kaa: uz-kaa
+  domains:
+    en: ''
+    uz-ru: ''
+    uz-uz: ''
+    uz-kaa: ''
+selected_langcode: site_default

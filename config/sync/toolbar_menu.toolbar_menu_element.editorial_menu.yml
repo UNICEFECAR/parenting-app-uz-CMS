@@ -1,0 +1,9 @@
+uuid: 265dc770-8cab-4f6d-99cb-fad135af8629
+langcode: en
+status: true
+dependencies: {  }
+id: editorial_menu
+label: 'Editorial Menu'
+weight: null
+menu: editorial-menu
+rewrite_label: false

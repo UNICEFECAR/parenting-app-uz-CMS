@@ -1,0 +1,35 @@
+id: bebbo_group_relationship
+label: 'Bebbo group relationships of the country groups on this site (memberships)'
+migration_tags:
+  - bebbo_content
+# IDs, UUIDs and values are copied as they are on Bebbo. The entities to
+# migrate are chosen by drush bebbo-content-migrate:select. See README.md.
+# The groups themselves are created by bebbo-country-config.
+source:
+  plugin: bebbo_content_entity
+  entity_type: group_relationship
+  database_state_key: bebbo_content_migrate.database
+process:
+  id: id
+  uuid: uuid
+  langcode: target_langcode
+  default_langcode: default_langcode
+  type: type
+  gid: gid
+  entity_id: entity_id
+  plugin_id: plugin_id
+  group_type: group_type
+  label: label
+  uid: uid
+  created: created
+  changed: changed
+  group_roles: group_roles
+destination:
+  plugin: 'entity:group_relationship'
+migration_dependencies:
+  required:
+    - bebbo_user
+  optional:
+    - bebbo_node
+    - bebbo_media
+    - bebbo_taxonomy_term

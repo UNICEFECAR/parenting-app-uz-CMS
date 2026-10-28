@@ -1,0 +1,407 @@
+<?php
+
+namespace Drupal\pb_custom_field\Plugin\Action;
+
+use Drupal\views_bulk_operations\Action\ViewsBulkOperationsActionBase;
+use Drupal\Core\Session\AccountInterface;
+use Drupal\Core\StringTranslation\StringTranslationTrait;
+use Drupal\Core\Entity\ContentEntityInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Language\LanguageInterface;
+use Drupal\group\Entity\Group;
+use Drupal\Core\Ajax\HtmlCommand;
+use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\group\Entity\GroupMembership;
+use Drupal\node\Entity\Node;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+
+/*
+use Drupal\group\Entity;
+use Drupal\node\Entity\Node;
+use Drupal\Core\Form\FormBase;
+use Drupal\Core\Language\LanguageManager;
+use Drupal\Core\Url;
+ */
+/**
+ * Action description.
+ *
+ * @Action(
+ *   id = "pb_custom_field_assign_action",
+ *   label = @Translation("Assign Content to Country"),
+ *   type = "node",
+ *   confirm = FALSE
+ * )
+ */
+class AssigncontentAction extends ViewsBulkOperationsActionBase {
+  use StringTranslationTrait;
+
+  /**
+   * The current user.
+   *
+   * @var \Drupal\Core\Session\AccountProxyInterface
+   */
+  protected $currentUser;
+
+  /**
+   * The language manager.
+   *
+   * @var \Drupal\Core\Language\LanguageManagerInterface
+   */
+  protected $languageManager;
+
+  /**
+   * The messenger service.
+   *
+   * @var \Drupal\Core\Messenger\MessengerInterface
+   */
+  protected $messenger;
+
+  /**
+   * The logger channel.
+   *
+   * @var \Psr\Log\LoggerInterface
+   */
+  protected $logger;
+
+  /**
+   * The request stack.
+   *
+   * @var \Symfony\Component\HttpFoundation\RequestStack
+   */
+  protected $requestStack;
+
+  /**
+   * The time service.
+   *
+   * @var \Drupal\Component\Datetime\TimeInterface
+   */
+  protected $time;
+
+  /**
+   * Get the total translated count.
+   *
+   * @var int
+   */
+  public $assigned = 0;
+
+  /**
+   * Get the total non translated count.
+   *
+   * @var int
+   */
+  public $nonAssigned = 0;
+
+  /**
+   * Get the total items processed.
+   *
+   * @var int
+   */
+  public $processItem = 0;
+
+  /**
+   * {@inheritdoc}
+   */
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, $current_user = NULL, $language_manager = NULL, $messenger = NULL, $logger = NULL, $request_stack = NULL, $time = NULL) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition);
+    $this->currentUser = $current_user;
+    $this->languageManager = $language_manager;
+    $this->messenger = $messenger;
+    $this->logger = $logger;
+    $this->requestStack = $request_stack;
+    $this->time = $time;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition) {
+    return new self(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('current_user'),
+      $container->get('language_manager'),
+      $container->get('messenger'),
+      $container->get('logger.factory')->get('bulk_action'),
+      $container->get('request_stack'),
+      $container->get('datetime.time')
+    );
+  }
+
+  /**
+   * Get the current user service.
+   */
+  protected function getCurrentUser() {
+    if (!$this->currentUser) {
+      $this->currentUser = \Drupal::currentUser();
+    }
+    return $this->currentUser;
+  }
+
+  /**
+   * Load group memberships for the given user.
+   *
+   * @param \Drupal\Core\Session\AccountInterface|null $account
+   *   The user account.
+   *
+   * @return \Drupal\group\Entity\GroupRelationshipInterface[]
+   *   The group memberships.
+   */
+  protected function loadGroupMemberships(?AccountInterface $account = NULL) {
+    return GroupMembership::loadByUser($account);
+  }
+
+  /**
+   * Get the language manager service.
+   */
+  protected function getLanguageManager() {
+    if (!$this->languageManager) {
+      $this->languageManager = \Drupal::languageManager();
+    }
+    return $this->languageManager;
+  }
+
+  /**
+   * Get the messenger service.
+   */
+  protected function getMessenger() {
+    if (!$this->messenger) {
+      $this->messenger = \Drupal::messenger();
+    }
+    return $this->messenger;
+  }
+
+  /**
+   * Get the logger service.
+   */
+  protected function getLogger() {
+    if (!$this->logger) {
+      $this->logger = \Drupal::logger('bulk_action');
+    }
+    return $this->logger;
+  }
+
+  /**
+   * Get the request stack service.
+   */
+  protected function getRequestStack() {
+    if (!$this->requestStack) {
+      $this->requestStack = \Drupal::service('request_stack');
+    }
+    return $this->requestStack;
+  }
+
+  /**
+   * Get the time service.
+   */
+  protected function getTime() {
+    if (!$this->time) {
+      $this->time = \Drupal::service('datetime.time');
+    }
+    return $this->time;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function buildConfigurationForm(array $form, FormStateInterface $form_state): array {
+    $currentAccount = $this->getCurrentUser();
+    $cur_user_roles = $currentAccount->getRoles();
+    $authorized_roles = ['se', 'sme', 'editor', 'reviewer'];
+
+    /* get all the country list */
+    $country_list = [];
+    $country_list[''] = "Select Country";
+    $group = Group :: loadMultiple();
+    foreach ($group as $grp) {
+      $country_list[$grp->id()] = $grp->label();
+    }
+
+    $language_options = [];
+    /* Check the user roles */
+    if (count(array_intersect($cur_user_roles, $authorized_roles)) != 0) {
+      $grps = $this->loadGroupMemberships($currentAccount);
+
+      if (!empty($grps)) {
+        $groups = [];
+        $country_list = [];
+        foreach ($grps as $grp) {
+          $groups = $grp->getGroup();
+          $country_list[$groups->id()] = $groups->label();
+        }
+        $languages = $groups->get('field_language')->getString();
+        $language_arr = array_map('trim', explode(',', $languages));
+        $language_options = [];
+        foreach ($this->getLanguageManager()->getLanguages(LanguageInterface::STATE_CONFIGURABLE) as $langcode => $language) {
+          if (in_array($langcode, $language_arr)) {
+            $language_options[$langcode] = $language->getName();
+          }
+        }
+      }
+    }
+    $form['country_option'] = [
+      '#title' => $this->t('Select Country'),
+      '#type' => 'select',
+      '#options' => $country_list,
+      '#required' => TRUE,
+      '#default_value' => '',
+      '#ajax' => [
+        'callback' => [$this, 'getlanguages'],
+        'event' => 'change',
+        'method' => 'html',
+        'wrapper' => 'language_option',
+        'progress' => [
+          'type' => 'throbber',
+          'message' => NULL,
+        ],
+      ],
+    ];
+
+    $form['language_option'] = [
+      '#title' => $this->t('Select Language'),
+      '#type' => 'select',
+      '#options' => $language_options,
+      '#required' => TRUE,
+      '#attributes' => ["id" => 'language_option'],
+      '#validated' => TRUE,
+      '#placeholder' => 'Select Language',
+    ];
+
+    return $form;
+  }
+
+  /**
+   * Ajax method to get the language data.
+   */
+  public function getlanguages(array &$element, FormStateInterface $form_state) {
+    $triggeringElement = $form_state->getTriggeringElement();
+    $value = $triggeringElement['#value'];
+    $renderedField = '';
+    $language_options = [];
+    $language_options[''] = "Select Language";
+    if (!empty($value)) {
+      /* load group */
+      $groups = Group::load($value);
+      $languages = $groups->get('field_language')->getString();
+      $language_arr = array_map('trim', explode(',', $languages));
+      foreach ($this->getLanguageManager()->getLanguages(LanguageInterface::STATE_CONFIGURABLE) as $langcode => $language) {
+        if (in_array($langcode, $language_arr)) {
+          $language_options[$langcode] = $language->getName();
+        }
+      }
+
+      foreach ($language_options as $key => $value) {
+        $renderedField .= "<option value='" . $key . "'>" . $value . "</option>";
+      }
+    }
+    $wrapper_id = $triggeringElement["#ajax"]["wrapper"];
+    $response = new AjaxResponse();
+    $response->addCommand(new HtmlCommand("#" . $wrapper_id, $renderedField));
+    return $response;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function validateConfigurationForm(array &$form, FormStateInterface $form_state): void {
+    $country_code = $form_state->getvalue('country_option');
+    if (empty($country_code)) {
+      $form_state->setErrorByName('country_option', $this->t('Please select the Country.'));
+    }
+    $language_code = $form_state->getvalue('language_option');
+    if (empty($language_code)) {
+      $form_state->setErrorByName('language_option', $this->t('Please select the language.'));
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function submitConfigurationForm(array &$form, FormStateInterface $form_state): void {
+    $this->configuration['language_option'] = $form_state->getValue('language_option');
+    $this->configuration['country_option'] = $form_state->getValue('country_option');
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function execute(?ContentEntityInterface $entity = NULL) {
+    $context = $this->context;
+    $total_selected = $context['selected_count'];
+    $langoption = $this->configuration['language_option'];
+    $countryoption = $this->configuration['country_option'];
+    $this->processItem = $this->processItem + 1;
+    $message = "";
+    $error_message = "";
+    $log = [];
+    if (!empty($langoption) && !empty($countryoption)) {
+      $current_language = $entity->get('langcode')->value;
+      $nid = $entity->get('nid')->getString();
+      $node = Node::load($nid);
+      $current_user = $this->getCurrentUser();
+      $uid = $current_user->id();
+      $uname = $current_user->getDisplayName();
+      if (!$node->hasTranslation($langoption)) {
+        $node_lang = $node->getTranslation($current_language);
+        $node_es = $node->addTranslation($langoption, $node_lang->toArray());
+        $node_es->set('moderation_state', 'draft');
+        $node_es->set('langcode', $langoption);
+        $node_es->set('uid', $uid);
+        $node_es->set('content_translation_source', $current_language);
+        $node_es->set('changed', time());
+        $node_es->set('created', time());
+        $node_es->setNewRevision(TRUE);
+        $node_es->revision_log = 'content assigned from Assign Content to Country option from ' . $current_language . ' by ' . $uname;
+        $node_es->setRevisionCreationTime($this->getTime()->getRequestTime());
+        $node_es->setRevisionUserId($uid);
+        $node_es->setRevisionTranslationAffected(TRUE);
+        $node_es->save();
+        $this->assigned = $this->assigned + 1;
+      }
+      else {
+        $this->nonAssigned = $this->nonAssigned + 1;
+      }
+
+      $log["source_language"] = $current_language;
+      $log["nid"] = $nid;
+      $log["uid"] = $uid;
+      $log["desitination_language"] = $langoption;
+      $current_uri = $this->getRequestStack()->getCurrentRequest()->getRequestUri();
+      $log["requested_url"] = $current_uri;
+      if ($this->assigned > 0) {
+        $message = $this->t("Content assigned to country ( @assigned ) <br/>", ['@assigned' => $this->assigned]);
+        $log["status"] = $message;
+      }
+      if ($this->nonAssigned > 0) {
+        $error_message = $this->t("Content already exists in country ( @nonassigned ) <br/>", ['@nonassigned' => $this->nonAssigned]);
+        $log["status"] = $error_message;
+      }
+    }
+    $logs = json_encode($log);
+    $this->getLogger()->info($logs);
+
+    if ($total_selected == $this->processItem) {
+      if (!empty($message)) {
+        $this->getMessenger()->addStatus($message);
+      }
+      if (!empty($error_message)) {
+        $this->getMessenger()->addError($error_message);
+      }
+    }
+    return $this->t("Total content selected");
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function access($object, ?AccountInterface $account = NULL, $return_as_object = FALSE) {
+    if ($object->getEntityType() === 'node') {
+      $access = $object->access('update', $account, TRUE)
+        ->andIf($object->status->access('edit', $account, TRUE));
+      return $return_as_object ? $access : $access->isAllowed();
+    }
+
+    return TRUE;
+  }
+
+}

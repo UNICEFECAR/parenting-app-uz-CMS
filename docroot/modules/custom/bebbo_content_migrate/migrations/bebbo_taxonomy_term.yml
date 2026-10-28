@@ -1,0 +1,65 @@
+id: bebbo_taxonomy_term
+label: 'Bebbo taxonomy terms, with revisions and translations'
+migration_tags:
+  - bebbo_content
+# IDs, UUIDs and values are copied as they are on Bebbo. The entities to
+# migrate are chosen by drush bebbo-content-migrate:select. See README.md.
+# Every term of the vocabularies this site has.
+source:
+  plugin: bebbo_content_entity
+  entity_type: taxonomy_term
+  database_state_key: bebbo_content_migrate.database
+process:
+  tid: tid
+  revision_id: revision_id
+  uuid: uuid
+  langcode: target_langcode
+  vid: vid
+  revision_created: revision_created
+  revision_user: revision_user
+  revision_log_message: revision_log_message
+  status: status
+  name: name
+  description: description
+  parent: parent
+  changed: changed
+  default_langcode: target_default_langcode
+  revision_default: revision_default
+  revision_translation_affected: revision_translation_affected
+  content_translation_source: content_translation_source
+  content_translation_outdated: content_translation_outdated
+  content_translation_uid: content_translation_uid
+  content_translation_created: content_translation_created
+  field_age_bracket: field_age_bracket
+  field_buffers_days: field_buffers_days
+  field_category: field_category
+  field_chatbot_category: field_chatbot_category
+  field_child_age: field_child_age
+  field_child_gender: field_child_gender
+  field_days_from: field_days_from
+  field_days_to: field_days_to
+  field_growth_type: field_growth_type
+  field_period: field_period
+  field_sd0: field_sd0
+  field_sd1: field_sd1
+  field_sd1neg: field_sd1neg
+  field_sd2: field_sd2
+  field_sd2neg: field_sd2neg
+  field_sd3: field_sd3
+  field_sd3neg: field_sd3neg
+  field_sd4: field_sd4
+  field_sd4neg: field_sd4neg
+  field_short_name: field_short_name
+  field_type_of_article: field_type_of_article
+  field_unique_name: field_unique_name
+  field_vaccination_opens: field_vaccination_opens
+  field_weeks_from: field_weeks_from
+  field_weeks_to: field_weeks_to
+  weight: weight
+  feeds_item: feeds_item
+destination:
+  plugin: 'bebbo_entity_complete:taxonomy_term'
+  translations: true
+migration_dependencies:
+  required:
+    - bebbo_user

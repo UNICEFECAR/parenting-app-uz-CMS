@@ -1,0 +1,19 @@
+services:
+  _defaults:
+    autowire: true
+
+  Drupal\bebbo_content_migrate\SourceDatabase: ~
+  Drupal\bebbo_content_migrate\SourceTables: ~
+  Drupal\bebbo_content_migrate\Selection: ~
+  Drupal\bebbo_content_migrate\SelectionBuilder: ~
+  Drupal\bebbo_content_migrate\SchemaChecker: ~
+  Drupal\bebbo_content_migrate\Verifier: ~
+  Drupal\bebbo_content_migrate\SourceValueRestorer: ~
+
+  Drupal\bebbo_content_migrate\EventSubscriber\MigrateSubscriber:
+    tags:
+      - { name: event_subscriber }
+
+  Drupal\bebbo_content_migrate\SyncingFieldTranslationSynchronizer:
+    decorates: content_translation.synchronizer
+    arguments: ['@.inner']

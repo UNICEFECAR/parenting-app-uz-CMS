@@ -1,0 +1,17 @@
+<?php
+
+/**
+ * @file
+ * It contains custom field module.
+ */
+
+use Symfony\Component\HttpFoundation\RedirectResponse;
+
+/**
+ * For redirect page.
+ */
+function pb_custom_form_my_goto($path) {
+  $response = new RedirectResponse($path);
+  $response->send();
+  return $response;
+}

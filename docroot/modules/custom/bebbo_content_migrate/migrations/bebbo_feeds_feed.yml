@@ -1,0 +1,35 @@
+id: bebbo_feeds_feed
+label: 'Bebbo feeds that imported the migrated content'
+migration_tags:
+  - bebbo_content
+# IDs, UUIDs and values are copied as they are on Bebbo. The entities to
+# migrate are chosen by drush bebbo-content-migrate:select. See README.md.
+# Runs after the content: Feeds counts the items of each feed on save.
+source:
+  plugin: bebbo_content_entity
+  entity_type: feeds_feed
+  database_state_key: bebbo_content_migrate.database
+process:
+  fid: fid
+  uuid: uuid
+  type: type
+  title: title
+  uid: uid
+  status: status
+  created: created
+  changed: changed
+  imported: imported
+  next: next
+  periodic_import: periodic_import
+  queued: queued
+  source: source
+  config: config
+  item_count: item_count
+destination:
+  plugin: 'entity:feeds_feed'
+migration_dependencies:
+  required:
+    - bebbo_user
+    - bebbo_taxonomy_term
+    - bebbo_media
+    - bebbo_node

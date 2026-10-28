@@ -1,0 +1,201 @@
+<?php
+
+/**
+ * @file
+ * Content Analytics module for Bebbo app.
+ */
+
+use Drupal\Core\Entity\EntityFormInterface;
+use Drupal\Core\Entity\EntityInterface;
+use Drupal\Core\Entity\FieldableEntityInterface;
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\views\ViewExecutable;
+
+/**
+ * Implements hook_cron().
+ */
+function pb_content_analytics_cron(): void {
+  /** @var \Drupal\pb_content_analytics\Service\AnalyticsSyncService $sync_service */
+  $sync_service = \Drupal::service('pb_content_analytics.sync_service');
+  $logger = \Drupal::logger('pb_content_analytics');
+
+  if (!$sync_service->isSyncEnabled()) {
+    $logger->info('Cron: analytics sync is disabled, skipping.');
+    return;
+  }
+
+  if (!$sync_service->isAutoSyncEnabled()) {
+    $logger->info('Cron: auto-sync is disabled, skipping.');
+    return;
+  }
+
+  $frequency = $sync_service->getSyncFrequency();
+  $interval = $frequency === 'daily' ? 86400 : 604800;
+
+  $last = $sync_service->getLastSuccessfulSyncLog();
+  if ($last) {
+    $last_time = strtotime($last['sync_time']);
+    $elapsed = time() - $last_time;
+    if ($elapsed < $interval) {
+      $remaining = $interval - $elapsed;
+      $logger->info('Cron: last sync was @elapsed s ago (@freq interval = @interval s). Next sync in @remaining s.', [
+        '@elapsed' => $elapsed,
+        '@freq' => $frequency,
+        '@interval' => $interval,
+        '@remaining' => $remaining,
+      ]);
+      return;
+    }
+  }
+
+  $logger->info('Cron: starting BigQuery analytics sync (@freq).', ['@freq' => $frequency]);
+
+  try {
+    $data = $sync_service->fetchFromBigQuery();
+    $logger->info('Cron: fetched @count records from BigQuery.', ['@count' => count($data)]);
+    $stats = $sync_service->processBatch($data);
+    $sync_service->logSyncResult($stats, 'cron');
+    $logger->info('Cron: sync complete — processed: @processed, updated: @updated, skipped: @skipped (unknown type: @ut, not found: @nf, up to date: @ud).', [
+      '@processed' => $stats['processed'],
+      '@updated' => $stats['updated'],
+      '@skipped' => $stats['skipped'],
+      '@ut' => $stats['skipped_unknown_type'],
+      '@nf' => $stats['skipped_not_found'],
+      '@ud' => $stats['skipped_up_to_date'],
+    ]);
+  }
+  // Catch every Throwable so a failed analytics sync only fails itself and
+  // never aborts the rest of the cron run. Core's cron handler only catches
+  // \Exception, so an \Error escaping here would stop all remaining cron.
+  catch (\Throwable $e) {
+    $sync_service->logSyncResult(
+      ['processed' => 0, 'updated' => 0, 'skipped' => 0],
+      'cron',
+      $e->getMessage()
+    );
+    $logger->error('Cron sync failed: @message', ['@message' => $e->getMessage()]);
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ *
+ * - Adds a CSV download button to the Content Analytics
+ *   report exposed filter form.
+ * - Disables analytics fields on node add/edit forms so they are visible
+ *   but cannot be edited by the user.
+ */
+function pb_content_analytics_form_alter(&$form, FormStateInterface $form_state, $form_id): void {
+  if ($form_id === 'views_exposed_form') {
+    $storage = $form_state->getStorage();
+    if (!empty($storage['view'])) {
+      $views_with_export = [
+        'content_analytics',
+        'country_reports',
+        'content_export_csv',
+        'child_growth_reports',
+        'keyword_term_count',
+        'global_reports',
+        'global_content_listing',
+        'taxonomy_export',
+        'taxonomy_export_standard_deviation',
+        'tmgmt_translation_all_job_items',
+        'users_reports',
+      ];
+      if (in_array($storage['view']->id(), $views_with_export)) {
+        $form['#attached']['library'][] = 'pb_content_analytics/csv-export-relocate';
+      }
+    }
+    return;
+  }
+
+  $form_object = $form_state->getFormObject();
+  if (!$form_object instanceof EntityFormInterface) {
+    return;
+  }
+
+  $entity = $form_object->getEntity();
+  if (!$entity instanceof FieldableEntityInterface || $entity->getEntityTypeId() !== 'node') {
+    return;
+  }
+
+  $analytics_fields = ['field_like_count', 'field_read_count', 'field_analytics_updated'];
+
+  foreach ($analytics_fields as $field_name) {
+    if (isset($form[$field_name])) {
+      $form[$field_name]['#disabled'] = TRUE;
+    }
+  }
+}
+
+/**
+ * Implements hook_views_pre_render().
+ */
+function pb_content_analytics_views_pre_render(ViewExecutable $view): void {
+  $views_with_export = [
+    'content_analytics',
+    'country_reports',
+    'content_export_csv',
+    'child_growth_reports',
+    'keyword_term_count',
+    'global_reports',
+    'global_content_listing',
+    'taxonomy_export',
+    'taxonomy_export_standard_deviation',
+    'tmgmt_translation_all_job_items',
+    'users_reports',
+  ];
+  if (in_array($view->id(), $views_with_export)) {
+    $view->element['#attached']['library'][] = 'pb_content_analytics/csv-export-relocate';
+  }
+
+  if ($view->id() === 'country_reports' && $view->current_display === 'data_export_1') {
+    $input = $view->getExposedInput();
+    if (empty($input['include_body'])) {
+      $body_fields = [
+        'type_1',
+        'field_body_rendered',
+        'field_body_rendered_1',
+        'body',
+        'field_milestone_instructions',
+      ];
+      foreach ($body_fields as $field_id) {
+        unset($view->field[$field_id]);
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_node_view().
+ */
+function pb_content_analytics_node_view(array &$build, EntityInterface $entity, $display, $view_mode): void {
+  $supported_types = ['article', 'video_article', 'course', 'activities'];
+  if (!in_array($entity->bundle(), $supported_types, TRUE)) {
+    return;
+  }
+
+  if (!$entity instanceof FieldableEntityInterface) {
+    return;
+  }
+
+  /** @var \Drupal\pb_content_analytics\Service\AnalyticsSyncService $sync_service */
+  $sync_service = \Drupal::service('pb_content_analytics.sync_service');
+  if (!$sync_service->isSyncEnabled()) {
+    return;
+  }
+
+  $build['field_like_count'] = [
+    '#type'   => 'item',
+    '#title'  => t('Like count'),
+    '#markup' => (string) ($entity->get('field_like_count')->value ?? 0),
+    '#weight' => 100,
+  ];
+
+  $build['field_read_count'] = [
+    '#type'   => 'item',
+    '#title'  => t('Read count'),
+    '#markup' => (string) ($entity->get('field_read_count')->value ?? 0),
+    '#weight' => 101,
+  ];
+}

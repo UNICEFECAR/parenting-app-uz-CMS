@@ -1,0 +1,46 @@
+id: bebbo_menu_link_content
+label: 'Bebbo menu links in the languages of this site, with revisions and translations'
+migration_tags:
+  - bebbo_content
+# IDs, UUIDs and values are copied as they are on Bebbo. The entities to
+# migrate are chosen by drush bebbo-content-migrate:select. See README.md.
+source:
+  plugin: bebbo_content_entity
+  entity_type: menu_link_content
+  database_state_key: bebbo_content_migrate.database
+process:
+  id: id
+  revision_id: revision_id
+  uuid: uuid
+  langcode: target_langcode
+  bundle: bundle
+  revision_created: revision_created
+  revision_user: revision_user
+  revision_log_message: revision_log_message
+  enabled: enabled
+  title: title
+  description: description
+  menu_name: menu_name
+  link: link
+  external: external
+  rediscover: rediscover
+  weight: weight
+  expanded: expanded
+  parent: parent
+  changed: changed
+  default_langcode: target_default_langcode
+  revision_default: revision_default
+  revision_translation_affected: revision_translation_affected
+  menu_per_role__show_role: menu_per_role__show_role
+  menu_per_role__hide_role: menu_per_role__hide_role
+  content_translation_source: content_translation_source
+  content_translation_outdated: content_translation_outdated
+  content_translation_uid: content_translation_uid
+  content_translation_status: content_translation_status
+  content_translation_created: content_translation_created
+destination:
+  plugin: 'bebbo_entity_complete:menu_link_content'
+  translations: true
+migration_dependencies:
+  required:
+    - bebbo_user

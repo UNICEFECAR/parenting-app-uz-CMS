@@ -1,0 +1,216 @@
+<?php
+
+/**
+ * @file
+ * Install, schema, and update hooks for pb_custom_form module.
+ */
+
+use Drupal\Core\Database\Connection;
+
+/**
+ * Implements hook_schema().
+ */
+function pb_custom_form_schema(): array {
+  $schema['forcefull_check_update_api'] = [
+    'description' => 'Stores values for forceful API update checks.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'not null' => TRUE,
+        'description' => 'Primary key: Unique ID for forcefull_check_update_api.',
+      ],
+      // Fields added and retained after updates.
+      'uuid' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'User UUID who triggered the update.',
+      ],
+      'created_at' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Record creation timestamp.',
+      ],
+      'countries_id' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Associated country ID.',
+      ],
+      'flag_status' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Status flag of the force update.',
+      ],
+      'update_type' => [
+        'type' => 'varchar',
+        'length' => 50,
+        'not null' => TRUE,
+        'default' => 'content_update',
+        'description' => 'Type of update: content_update or app_update.',
+      ],
+      'google_play_url' => [
+        'type' => 'varchar',
+        'length' => 512,
+        'not null' => FALSE,
+        'default' => NULL,
+        'description' => 'Google Play Store URL for app update.',
+      ],
+      'app_store_url' => [
+        'type' => 'varchar',
+        'length' => 512,
+        'not null' => FALSE,
+        'default' => NULL,
+        'description' => 'Apple App Store URL for app update.',
+      ],
+    ],
+    'primary key' => ['id'],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Helper to get database connection.
+ */
+function _pb_custom_form_db(): Connection {
+  return \Drupal::service('database');
+}
+
+/**
+ * Update #70010: Add uuid column.
+ */
+function pb_custom_form_update_70010(): void {
+  $spec = [
+    'type' => 'varchar',
+    'length' => 255,
+    'default' => '',
+    'description' => 'User UUID who triggered the update.',
+  ];
+  _pb_custom_form_db()->schema()->addField('forcefull_check_update_api', 'uuid', $spec);
+}
+
+/**
+ * Update #70011: Add created_at column.
+ */
+function pb_custom_form_update_70011(): void {
+  $spec = [
+    'type' => 'varchar',
+    'length' => 255,
+    'default' => '',
+    'description' => 'Record creation timestamp.',
+  ];
+  _pb_custom_form_db()->schema()->addField('forcefull_check_update_api', 'created_at', $spec);
+}
+
+/**
+ * Update #70012: Add countries_id column.
+ */
+function pb_custom_form_update_70012(): void {
+  $spec = [
+    'type' => 'varchar',
+    'length' => 255,
+    'default' => '',
+    'description' => 'Associated country ID.',
+  ];
+  _pb_custom_form_db()->schema()->addField('forcefull_check_update_api', 'countries_id', $spec);
+}
+
+/**
+ * Update #70013: Add flag_status column.
+ */
+function pb_custom_form_update_70013(): void {
+  $spec = [
+    'type' => 'varchar',
+    'length' => 255,
+    'default' => '',
+    'description' => 'Status flag of the force update.',
+  ];
+  _pb_custom_form_db()->schema()->addField('forcefull_check_update_api', 'flag_status', $spec);
+}
+
+/**
+ * Update #70014: Drop obsolete flag column.
+ */
+function pb_custom_form_update_70014(): void {
+  if (_pb_custom_form_db()->schema()->fieldExists('forcefull_check_update_api', 'flag')) {
+    _pb_custom_form_db()->schema()->dropField('forcefull_check_update_api', 'flag');
+  }
+}
+
+/**
+ * Update #70015: Drop obsolete country_id column.
+ */
+function pb_custom_form_update_70015(): void {
+  if (_pb_custom_form_db()->schema()->fieldExists('forcefull_check_update_api', 'country_id')) {
+    _pb_custom_form_db()->schema()->dropField('forcefull_check_update_api', 'country_id');
+  }
+}
+
+/**
+ * Update #70016: Drop obsolete updated_at column.
+ */
+function pb_custom_form_update_70016(): void {
+  if (_pb_custom_form_db()->schema()->fieldExists('forcefull_check_update_api', 'updated_at')) {
+    _pb_custom_form_db()->schema()->dropField('forcefull_check_update_api', 'updated_at');
+  }
+}
+
+/**
+ * Update #70017: Enable config_split module before config import.
+ */
+function pb_custom_form_update_70017(): void {
+  if (!\Drupal::moduleHandler()->moduleExists('config_split')) {
+    \Drupal::service('module_installer')->install(['config_split']);
+  }
+}
+
+/**
+ * Update #70018: Add update_type, google_play_url, app_store_url columns.
+ *
+ * Adds update_type, google_play_url, and app_store_url columns.
+ *
+ * update_type distinguishes 'content_update' from 'app_update' rows.
+ * google_play_url and app_store_url are optional URLs for app update records.
+ * Existing rows default to 'content_update' to preserve backward compatibility.
+ */
+function pb_custom_form_update_70018(): void {
+  $db = _pb_custom_form_db();
+  $schema = $db->schema();
+
+  if (!$schema->fieldExists('forcefull_check_update_api', 'update_type')) {
+    $schema->addField('forcefull_check_update_api', 'update_type', [
+      'type' => 'varchar',
+      'length' => 50,
+      'not null' => TRUE,
+      'default' => 'content_update',
+      'description' => 'Type of update: content_update or app_update.',
+    ]);
+  }
+
+  if (!$schema->fieldExists('forcefull_check_update_api', 'google_play_url')) {
+    $schema->addField('forcefull_check_update_api', 'google_play_url', [
+      'type' => 'varchar',
+      'length' => 512,
+      'not null' => FALSE,
+      'default' => NULL,
+      'description' => 'Google Play Store URL for app update.',
+    ]);
+  }
+
+  if (!$schema->fieldExists('forcefull_check_update_api', 'app_store_url')) {
+    $schema->addField('forcefull_check_update_api', 'app_store_url', [
+      'type' => 'varchar',
+      'length' => 512,
+      'not null' => FALSE,
+      'default' => NULL,
+      'description' => 'Apple App Store URL for app update.',
+    ]);
+  }
+}

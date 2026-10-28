@@ -1,0 +1,43 @@
+id: bebbo_media
+label: 'Bebbo media referenced by the migrated content, with revisions and translations'
+migration_tags:
+  - bebbo_content
+# IDs, UUIDs and values are copied as they are on Bebbo. The entities to
+# migrate are chosen by drush bebbo-content-migrate:select. See README.md.
+source:
+  plugin: bebbo_content_entity
+  entity_type: media
+  database_state_key: bebbo_content_migrate.database
+process:
+  mid: mid
+  vid: vid
+  uuid: uuid
+  langcode: target_langcode
+  bundle: bundle
+  revision_created: revision_created
+  revision_user: revision_user
+  revision_log_message: revision_log_message
+  status: status
+  uid: uid
+  name: name
+  thumbnail: thumbnail
+  created: created
+  changed: changed
+  default_langcode: target_default_langcode
+  revision_default: revision_default
+  revision_translation_affected: revision_translation_affected
+  content_translation_source: content_translation_source
+  content_translation_outdated: content_translation_outdated
+  field_media_file: field_media_file
+  field_media_image: field_media_image
+  field_media_oembed_video: field_media_oembed_video
+  field_media_video_file: field_media_video_file
+  field_video_embed_url: field_video_embed_url
+  feeds_item: feeds_item
+destination:
+  plugin: 'bebbo_entity_complete:media'
+  translations: true
+migration_dependencies:
+  required:
+    - bebbo_user
+    - bebbo_file

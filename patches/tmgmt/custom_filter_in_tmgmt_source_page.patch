@@ -1,0 +1,191 @@
+diff --git a/sources/content/src/ContentEntitySourcePluginUi.php b/sources/content/src/ContentEntitySourcePluginUi.php
+index e6e6829..e1cce55 100644
+--- a/sources/content/src/ContentEntitySourcePluginUi.php
++++ b/sources/content/src/ContentEntitySourcePluginUi.php
+@@ -8,6 +8,8 @@ use Drupal\Core\Entity\ContentEntityInterface;
+ use Drupal\Core\Entity\EntityPublishedInterface;
+ use Drupal\Core\Entity\FieldableEntityInterface;
+ use Drupal\Core\Form\FormStateInterface;
++use Drupal\group\Entity\Group;
++use Drupal\taxonomy\Entity\Term;
+ use Drupal\tmgmt\JobItemInterface;
+ use Drupal\tmgmt\SourcePluginUiBase;
+ use Drupal\tmgmt_content\Plugin\tmgmt\Source\ContentEntitySource;
+@@ -50,6 +52,45 @@ class ContentEntitySourcePluginUi extends SourcePluginUiBase {
+       );
+     }
+
++    // Node id custom filter.
++    $form['search_wrapper']['search']['node_id'] = [
++      '#type' => 'textfield',
++      '#title' => 'Node',
++      '#size' => 25,
++      '#default_value' => isset($_GET['node_id']) ? $_GET['node_id'] : NULL,
++    ];
++
++    // Country filter.
++    $gids = \Drupal::entityQuery('group')->accessCheck(TRUE)->condition('type', 'country')->execute();
++    $groups = Group::loadMultiple($gids);
++    $options = ['' => 'All'];
++
++    foreach ($groups as $gid => $group) {
++      $value = $group->get('label')->getString();
++      $id = $group->get('id')->getString();
++
++      if (isset($value)) {
++        $options[$id] = $value;
++      }
++    }
++
++    if (count($options) > 1) {
++      $form['search_wrapper']['search']['country'] = [
++        '#type' => 'select',
++        '#title' => 'Country',
++        '#options' => $options,
++        '#empty_option' => t('- Any -'),
++        '#default_value' => isset($_GET['country']) ? $_GET['country'] : NULL,
++      ];
++    }
++    // In case country is not enabled
++    // display appropriate message.
++    elseif (count($options) == 0) {
++      $this->messenger()->addWarning($this->t('Country is not enabled for any of existing content types.'));
++      unset($form['search_wrapper']);
++      return $form;
++    }
++
+     $form['search_wrapper']['search']['langcode'] = array(
+       '#type' => 'language_select',
+       '#title' => t('Source Language'),
+@@ -83,6 +124,7 @@ class ContentEntitySourcePluginUi extends SourcePluginUiBase {
+       '#empty_option' => $this->t('- Any -'),
+       '#default_value' => isset($_GET['target_language']) ? $_GET['target_language'] : NULL,
+     );
++
+     $form['search_wrapper']['search']['target_status'] = array(
+       '#type' => 'select',
+       '#title' => $this->t('Target status'),
+@@ -99,6 +141,65 @@ class ContentEntitySourcePluginUi extends SourcePluginUiBase {
+       ),
+     );
+
++    $form['search_wrapper']['search']['mandatory_content'] = [
++      '#type' => 'select',
++      '#title' => $this->t('Mandatory Content'),
++      '#options' => ['' => 'Any', 1 => 'Yes', 0 => 'No'],
++      '#default_value' => isset($_GET['mandatory_content']) ? $_GET['mandatory_content'] : NULL,
++      '#empty_option' => $this->t('- Any -'),
++    ];
++
++    $form['search_wrapper']['search']['pre_populated'] = [
++      '#type' => 'select',
++      '#title' => $this->t('Pre Populated	'),
++      '#options' => ['' => 'Any', 1 => 'Yes', 0 => 'No'],
++      '#default_value' => isset($_GET['pre_populated']) ? $_GET['pre_populated'] : NULL,
++      '#empty_option' => $this->t('- Any -'),
++    ];
++
++    $content_category_options = [];
++    $query_cat = \Drupal::entityQuery('taxonomy_term')->accessCheck(TRUE)
++      ->condition('vid', 'category')
++      ->execute();
++    if ($query_cat) {
++      foreach ($query_cat as $key => $val) {
++        $category_option = Term::load($val)->get('name')->value;
++        if (!empty($category_option)) {
++          $content_category_options[$val] = $category_option;
++        }
++      }
++    }
++
++    $form['search_wrapper']['search']['field_content_category'] = [
++      '#type' => 'select',
++      '#title' => $this->t('Category'),
++      '#options' => $content_category_options,
++      '#default_value' => isset($_GET['field_content_category']) ? $_GET['field_content_category'] : NULL,
++      '#empty_option' => $this->t('- Any -'),
++    ];
++
++    // Add field type of Article to the source filter form.
++    $field_type_of_article_options = [];
++    $query_cat = \Drupal::entityQuery('taxonomy_term')->accessCheck(TRUE)
++      ->condition('vid', 'type_of_article')
++      ->execute();
++    if ($query_cat) {
++      foreach ($query_cat as $val) {
++        $category_option = Term::load($val)->get('name')->value;
++        if (!empty($category_option)) {
++          $field_type_of_article_options[$val] = $category_option;
++        }
++      }
++    }
++
++    $form['search_wrapper']['search']['field_type_of_article'] = [
++      '#type' => 'select',
++      '#title' => $this->t('Type of Article'),
++      '#options' => $field_type_of_article_options,
++      '#default_value' => isset($_GET['field_type_of_article']) ? $_GET['field_type_of_article'] : NULL,
++      '#empty_option' => $this->t('- Any -'),
++    ];
++
+     return $form;
+   }
+
+@@ -232,7 +333,7 @@ class ContentEntitySourcePluginUi extends SourcePluginUiBase {
+
+     // Build a list of allowed search conditions and get their values from the request.
+     $entity_type = \Drupal::entityTypeManager()->getDefinition($type);
+-    $whitelist = array('langcode', 'target_language', 'target_status');
++    $whitelist = array('langcode', 'target_language', 'target_status', 'source_language');
+     if ($entity_type->hasKey('bundle')) {
+       $whitelist[] = $entity_type->getKey('bundle');
+     }
+@@ -435,7 +536,47 @@ class ContentEntitySourcePluginUi extends SourcePluginUiBase {
+       $langcode_table_alias = $query->innerJoin($data_table, 'data_table', '%alias.' . $id_key . ' = e.' . $id_key . ' AND %alias.default_langcode = 1');
+     }
+
+-    $property_conditions += array('langcode' => $langcodes);
++     // Ensure we query only published nodes (status = 1).
++    $status_table = $entity_type->getDataTable() ?: $entity_type->getBaseTable();
++    $query->innerJoin($status_table, 'status_table', 'status_table.' . $id_key . ' = e.' . $id_key);
++    // Ensure alias is used here.
++    $query->condition('status_table.status', 1);
++
++    $property_conditions += ['langcode' => $langcodes];
++    // Condition for node id and country filter.
++    if (isset($_GET['node_id']) && !empty($_GET['node_id'])) {
++      $query->condition('e.nid', $_GET['node_id']);
++    }
++
++    if (isset($_GET['country']) && !empty($_GET['country'])) {
++      $query->innerJoin('group_content_field_data', 'g', "g.type LIKE '%country-group_node%' AND g.gid = " . $_GET['country'] . " AND g. entity_id = e." . $id_key);
++    }
++
++    if (isset($_GET['mandatory_content'])) {
++      if (empty($_GET['mandatory_content']) && $_GET['mandatory_content'] != 0) {
++        $query->leftjoin('node__field_mandatory_content', 'mc', "mc.entity_id = e." . $id_key);
++      }
++      else {
++        $query->leftjoin('node__field_mandatory_content', 'mc', "mc.entity_id = e." . $id_key);
++        $query->condition('mc.field_mandatory_content_value', $_GET['mandatory_content'], '=');
++      }
++    }
++
++    if (isset($_GET['pre_populated']) && !empty($_GET['pre_populated'])) {
++      $query->leftjoin('node__field_pre_populated', 'pp', "pp.entity_id = e." . $id_key);
++      $query->condition('pp.field_pre_populated_value', $_GET['pre_populated'], '=');
++    }
++
++    if (isset($_GET['field_content_category']) && !empty($_GET['field_content_category'])) {
++      $query->leftjoin('node__field_content_category', 'cc', "cc.entity_id = e." . $id_key);
++      $query->condition('cc.field_content_category_target_id', $_GET['field_content_category'], '=');
++    }
++
++    // Add type of article query.
++    if (isset($_GET['field_type_of_article']) && !empty($_GET['field_type_of_article'])) {
++      $query->leftjoin('node__field_type_of_article', 'aa', "aa.entity_id = e." . $id_key);
++      $query->condition('aa.field_type_of_article_target_id', $_GET['field_type_of_article'], '=');
++    }
+
+     // Searching for sources with missing translation.
+     if (!empty($property_conditions['target_status']) && !empty($property_conditions['target_language']) && in_array($property_conditions['target_language'], $languages)) {

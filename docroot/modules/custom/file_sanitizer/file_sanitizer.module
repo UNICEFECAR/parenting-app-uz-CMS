@@ -1,0 +1,78 @@
+<?php
+
+/**
+ * @file
+ * Provides filename sanitization for file uploads and existing files.
+ */
+
+use Drupal\Core\File\FileExists;
+use Drupal\file\FileInterface;
+
+/**
+ * Implements hook_file_presave().
+ */
+function file_sanitizer_file_presave(FileInterface $file) {
+
+  // Only NEW uploads.
+  if (!$file->isNew()) {
+    return;
+  }
+
+  $uri = $file->getFileUri();
+
+  // CRITICAL: Only process files uploaded through Drupal forms
+  // (temporary:// scheme). System-generated files (exports, programmatic
+  // files) use public:// or private:// directly and MUST NOT be sanitized.
+  if (!str_starts_with($uri, 'temporary://')) {
+    return;
+  }
+
+  // CRITICAL: ONLY process IMAGE files.
+  // Skip all other file types (PDF, DOC, CSV, Excel, JSON, etc.).
+  $mime_type = $file->getMimeType();
+  if (!$mime_type || !str_starts_with($mime_type, 'image/')) {
+    return;
+  }
+
+  $filename = $file->getFilename();
+
+  /** @var \Drupal\file_sanitizer\Service\FilenameSanitizer $sanitizer */
+  $sanitizer = \Drupal::service('file_sanitizer.filename_sanitizer');
+
+  if (!$sanitizer->needsSanitization($filename)) {
+    return;
+  }
+
+  $sanitized_filename = $sanitizer->sanitize($filename);
+
+  // At this point, we know the file is in temporary:// (verified above).
+  // We must physically rename the file AND update the URI.
+  // Drupal's copy operation uses basename($uri), so just updating
+  // the filename field is not enough.
+  $old_uri = $file->getFileUri();
+  $new_uri = 'temporary://' . $sanitized_filename;
+
+  try {
+    // Physically rename/move the file in temporary storage.
+    $file_system = \Drupal::service('file_system');
+
+    $final_uri = $file_system->move(
+      $old_uri,
+      $new_uri,
+      FileExists::Replace
+    );
+
+    // Update both filename and URI to match the sanitized name.
+    $file->setFilename($sanitized_filename);
+    $file->setFileUri($final_uri);
+  }
+  catch (\Exception $e) {
+    \Drupal::logger('file_sanitizer')->error(
+      'MOVE FAILED: @msg',
+      ['@msg' => $e->getMessage()]
+    );
+
+    // Fallback: at least update the filename field.
+    $file->setFilename($sanitized_filename);
+  }
+}

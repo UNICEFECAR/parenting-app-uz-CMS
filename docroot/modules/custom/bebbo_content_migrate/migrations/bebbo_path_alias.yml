@@ -1,0 +1,26 @@
+id: bebbo_path_alias
+label: 'Bebbo path aliases of the migrated nodes, media, terms and group relationships'
+migration_tags:
+  - bebbo_content
+# IDs, UUIDs and values are copied as they are on Bebbo. The entities to
+# migrate are chosen by drush bebbo-content-migrate:select. See README.md.
+source:
+  plugin: bebbo_content_entity
+  entity_type: path_alias
+  database_state_key: bebbo_content_migrate.database
+process:
+  id: id
+  revision_id: revision_id
+  uuid: uuid
+  langcode: langcode
+  path: path
+  alias: alias
+  status: status
+destination:
+  plugin: 'entity:path_alias'
+migration_dependencies:
+  required:
+    - bebbo_node
+    - bebbo_media
+    - bebbo_taxonomy_term
+    - bebbo_group_relationship

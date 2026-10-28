@@ -1,0 +1,18 @@
+# Package info
+name: 'PB Custom Migrate (Multilingual)'
+description: Content multilingual migrations.
+type: module
+package: Migration
+core_version_requirement: ^9.2 || ^10 || ^11
+
+# Dependencies
+dependencies:
+  - drupal:system (>=8.3)
+  - drupal:migrate
+  - drupal:migrate_drupal
+  - drupal:migrate_plus
+  - drupal:migrate_tools
+  - drupal:migrate_source_csv
+  - drupal:node
+  - drupal:taxonomy
+  - drupal:content_translation

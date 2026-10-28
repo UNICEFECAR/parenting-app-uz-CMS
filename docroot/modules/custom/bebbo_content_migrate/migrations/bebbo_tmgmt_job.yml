@@ -1,0 +1,30 @@
+id: bebbo_tmgmt_job
+label: 'Bebbo translation jobs from or into the languages of the country'
+migration_tags:
+  - bebbo_content
+# IDs, UUIDs and values are copied as they are on Bebbo. The entities to
+# migrate are chosen by drush bebbo-content-migrate:select. See README.md.
+source:
+  plugin: bebbo_content_entity
+  entity_type: tmgmt_job
+  database_state_key: bebbo_content_migrate.database
+process:
+  tjid: tjid
+  uuid: uuid
+  source_language: source_language
+  target_language: target_language
+  label: label
+  uid: uid
+  translator: translator
+  settings: settings
+  reference: reference
+  state: state
+  created: created
+  changed: changed
+  job_type: job_type
+  continuous_settings: continuous_settings
+destination:
+  plugin: 'entity:tmgmt_job'
+migration_dependencies:
+  required:
+    - bebbo_user

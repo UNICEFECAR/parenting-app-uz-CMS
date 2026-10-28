@@ -1,0 +1,37 @@
+id: bebbo_tmgmt_job_item
+label: 'Bebbo translation job items of the migrated translation jobs'
+migration_tags:
+  - bebbo_content
+# IDs, UUIDs and values are copied as they are on Bebbo. The entities to
+# migrate are chosen by drush bebbo-content-migrate:select. See README.md.
+# Every item of the migrated jobs: an item whose node is not migrated keeps
+# its item_id, as an item of a deleted node does on Bebbo.
+source:
+  plugin: bebbo_content_entity
+  entity_type: tmgmt_job_item
+  database_state_key: bebbo_content_migrate.database
+process:
+  tjiid: tjiid
+  tjid: tjid
+  uuid: uuid
+  plugin: plugin
+  item_type: item_type
+  item_id: item_id
+  data: data
+  state: state
+  translator_state: translator_state
+  changed: changed
+  count_pending: count_pending
+  count_translated: count_translated
+  count_reviewed: count_reviewed
+  count_accepted: count_accepted
+  word_count: word_count
+  tags_count: tags_count
+  file_count: file_count
+destination:
+  plugin: 'entity:tmgmt_job_item'
+migration_dependencies:
+  required:
+    - bebbo_tmgmt_job
+  optional:
+    - bebbo_node

@@ -1,0 +1,36 @@
+forcefull_check_update_api:
+  table_name: forcefull_check_update_api
+  table_database: default
+  description: ''
+  column_relations: 'a:1:{s:2:"id";s:4:"node";}'
+  created_by: '1'
+pb_analytics_sync_log:
+  table_name: pb_analytics_sync_log
+  table_database: default
+  description: 'Content analytics sync run log'
+  column_relations: 'a:0:{}'
+  created_by: '1'
+bebbo_api_devices:
+  table_name: bebbo_api_devices
+  table_database: default
+  description: 'Registered devices for API authentication'
+  column_relations: 'a:0:{}'
+  created_by: '1'
+bebbo_api_refresh_tokens:
+  table_name: bebbo_api_refresh_tokens
+  table_database: default
+  description: 'JWT refresh tokens with rotation tracking'
+  column_relations: 'a:0:{}'
+  created_by: '1'
+bebbo_api_challenges:
+  table_name: bebbo_api_challenges
+  table_database: default
+  description: 'Verification challenge nonces'
+  column_relations: 'a:0:{}'
+  created_by: '1'
+bebbo_api_security_log:
+  table_name: bebbo_api_security_log
+  table_database: default
+  description: 'Security event audit trail'
+  column_relations: 'a:0:{}'
+  created_by: '1'

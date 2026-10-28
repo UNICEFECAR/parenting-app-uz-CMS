@@ -1,0 +1,43 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for Bebbo content migrate.
+ */
+
+declare(strict_types=1);
+
+/**
+ * Implements hook_schema().
+ */
+function bebbo_content_migrate_schema(): array {
+  $schema['bebbo_content_migrate_selection'] = [
+    'description' => 'The Bebbo entities to migrate, written by drush bebbo-content-migrate:select.',
+    'fields' => [
+      'entity_type' => [
+        'type' => 'varchar_ascii',
+        'length' => 32,
+        'not null' => TRUE,
+        'description' => 'The entity type ID.',
+      ],
+      'entity_id' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'The entity ID on Bebbo, kept on this site.',
+      ],
+    ],
+    'primary key' => ['entity_type', 'entity_id'],
+  ];
+  return $schema;
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function bebbo_content_migrate_uninstall(): void {
+  \Drupal::state()->deleteMultiple([
+    'bebbo_content_migrate.database',
+    'bebbo_content_migrate.settings',
+  ]);
+}

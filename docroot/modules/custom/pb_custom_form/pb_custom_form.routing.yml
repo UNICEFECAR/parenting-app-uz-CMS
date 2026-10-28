@@ -1,0 +1,26 @@
+pb_custom_form.admin_config_parent_buddy:
+  path: '/admin/config/parent_buddy'
+  defaults:
+    _controller: '\Drupal\system\Controller\SystemController::systemAdminMenuBlockPage'
+    _title: 'Parent Buddy'
+  requirements:
+    _permission: 'administer site configuration'
+
+pb_custom_form.forcefull_update_check:
+  path: '/admin/config/parent-buddy/forcefull-update-check'
+  defaults:
+    _form:  '\Drupal\pb_custom_form\Form\CustomForm'
+    _title: 'Force Update Settings'
+  requirements:
+    _permission: 'forcefull update check'
+  options:
+    _admin_route: TRUE
+
+
+pb_custom_form.ForceUpdateCheckForm:
+  path: '/forcefull-update-check'
+  defaults:
+    _form:  '\Drupal\pb_custom_form\Form\ForceUpdateCheckForm'
+    _title: 'Force Update Settings'
+  requirements:
+    _permission: 'forcefull update check'

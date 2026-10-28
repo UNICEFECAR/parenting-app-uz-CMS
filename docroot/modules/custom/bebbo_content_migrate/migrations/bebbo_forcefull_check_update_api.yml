@@ -1,0 +1,30 @@
+id: bebbo_forcefull_check_update_api
+label: 'Bebbo force update checks of the country groups on this site'
+migration_tags:
+  - bebbo_content
+# A table of pb_custom_form, not an entity type. The rows of the country
+# groups this site has (countries_id) are copied as they are on Bebbo, IDs
+# included. The rows are chosen by drush bebbo-content-migrate:select.
+source:
+  plugin: bebbo_table
+  table_name: forcefull_check_update_api
+  id_fields:
+    id:
+      type: integer
+  database_state_key: bebbo_content_migrate.database
+process:
+  id: id
+  uuid: uuid
+  created_at: created_at
+  countries_id: countries_id
+  flag_status: flag_status
+  update_type: update_type
+  google_play_url: google_play_url
+  app_store_url: app_store_url
+destination:
+  plugin: table
+  table_name: forcefull_check_update_api
+  id_fields:
+    id:
+      type: integer
+migration_dependencies: {  }

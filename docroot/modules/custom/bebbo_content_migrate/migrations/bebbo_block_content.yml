@@ -1,0 +1,39 @@
+id: bebbo_block_content
+label: 'Bebbo custom blocks in the languages of this site, with revisions and translations'
+migration_tags:
+  - bebbo_content
+# IDs, UUIDs and values are copied as they are on Bebbo. The entities to
+# migrate are chosen by drush bebbo-content-migrate:select. See README.md.
+source:
+  plugin: bebbo_content_entity
+  entity_type: block_content
+  database_state_key: bebbo_content_migrate.database
+process:
+  id: id
+  revision_id: revision_id
+  uuid: uuid
+  langcode: target_langcode
+  type: type
+  revision_created: revision_created
+  revision_user: revision_user
+  revision_log: revision_log
+  status: status
+  info: info
+  changed: changed
+  reusable: reusable
+  default_langcode: target_default_langcode
+  revision_default: revision_default
+  revision_translation_affected: revision_translation_affected
+  content_translation_source: content_translation_source
+  content_translation_outdated: content_translation_outdated
+  content_translation_uid: content_translation_uid
+  content_translation_created: content_translation_created
+  body: body
+destination:
+  plugin: 'bebbo_entity_complete:block_content'
+  translations: true
+migration_dependencies:
+  required:
+    - bebbo_user
+  optional:
+    - bebbo_media

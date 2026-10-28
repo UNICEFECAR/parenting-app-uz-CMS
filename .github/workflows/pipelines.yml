@@ -1,0 +1,151 @@
+name: Acquia CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - 'develop'
+      - 'stage'
+  pull_request:
+    branches:
+      - 'feature/**'
+      - 'bug/**'
+      - 'hotfix/**'
+      - 'develop'
+      - 'stage'
+  workflow_dispatch:
+
+jobs:
+  # -------------------------------
+  # 1. CI Checks (runs on PR + push)
+  # -------------------------------
+  ci-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          tools: composer
+          extensions: mbstring, pdo, xml, gd, curl, zip, bcmath, intl
+
+      - name: Composer install
+        run: |
+          composer validate --no-check-all --ansi
+          composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Run PHPCS
+        run: ./vendor/bin/phpcs
+
+      - name: Run Drupal Check
+        run: ./vendor/bin/drupal-check -d docroot/modules/custom
+
+      - name: Run PHPlint
+        run: ./vendor/bin/phplint
+
+  # -------------------------------
+  # 2. Deploy to Acquia Dev (develop branch)
+  # -------------------------------
+  deploy-dev:
+    needs: ci-checks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          tools: composer
+          extensions: mbstring, pdo, xml, gd, curl, zip, bcmath, intl
+
+      - name: Install Acquia CLI
+        run: |
+          curl -fsSL https://github.com/acquia/cli/releases/latest/download/acli.phar -o acli
+          chmod +x acli
+          sudo mv acli /usr/local/bin/acli
+
+      - name: Setup SSH key for Acquia Git
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.ACQUIA_SSH_PRIVATE_KEY }}
+
+      - name: Add Acquia host to known_hosts
+        run: ssh-keyscan -H ${{ secrets.ACQUIA_SSH_KNOWN_HOSTS }} >> ~/.ssh/known_hosts
+
+      - name: Set Git author info for Acquia commit
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions+bebbo@unicef.org"
+
+      - name: Authenticate with Acquia
+        run: |
+          acli auth:login \
+            --key=${{ secrets.ACQUIA_API_KEY_ID }} \
+            --secret=${{ secrets.ACQUIA_API_KEY_SECRET }}
+
+      - name: Ensure clean git state
+        run: |
+          git reset --hard
+          git clean -fdx
+
+      - name: Deploy develop build to Dev
+        run: |
+          echo "Deploying branch ${GITHUB_REF_NAME} to Dev"
+          acli push:artifact @parentbuddy2.dev --no-interaction -vvv
+
+  # -------------------------------
+  # 3. Deploy to Acquia Stage
+  # -------------------------------
+  deploy-stage:
+    needs: ci-checks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/stage'
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          tools: composer
+          extensions: mbstring, pdo, xml, gd, curl, zip, bcmath, intl
+
+      # No composer install here: `acli push:artifact` builds the artifact with
+      # its own `composer install --no-dev --optimize-autoloader`, and ci-checks
+      # already ran `composer validate` + install on this commit. Matches deploy-dev.
+      - name: Install Acquia CLI
+        run: |
+          curl -fsSL https://github.com/acquia/cli/releases/latest/download/acli.phar -o acli
+          chmod +x acli
+          sudo mv acli /usr/local/bin/acli
+
+      - name: Setup SSH key for Acquia Git
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.ACQUIA_SSH_PRIVATE_KEY }}
+
+      - name: Add Acquia host to known_hosts
+        run: ssh-keyscan -H ${{ secrets.ACQUIA_SSH_KNOWN_HOSTS }} >> ~/.ssh/known_hosts
+
+      - name: Set Git author info for Acquia commit
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-actions+bebbo@unicef.org"
+
+      - name: Authenticate with Acquia
+        run: |
+          acli auth:login \
+            --key=${{ secrets.ACQUIA_API_KEY_ID }} \
+            --secret=${{ secrets.ACQUIA_API_KEY_SECRET }}
+
+      - name: Ensure clean git state
+        run: |
+          git reset --hard
+          git clean -fd
+
+      - name: Deploy stage build to Stage
+        run: |
+          echo "Deploying branch ${GITHUB_REF_NAME} to Stage"
+          acli push:artifact @parentbuddy2.test --no-interaction

@@ -1,0 +1,20 @@
+uuid: 29faaa14-c2c4-4cd9-882c-12905cfe3190
+langcode: en
+status: true
+dependencies:
+  config: {  }
+  module:
+    - media
+    - pb_custom_form
+    - rest
+    - system
+_core:
+  default_config_hash: pq_mEIu_B4widZN7Ap81iCJSjShFFdcL0jEiCi8VrDk
+id: anonymous
+label: 'Anonymous user'
+weight: -10
+is_admin: false
+permissions:
+  - 'access content'
+  - 'manage mobile javascript'
+  - 'view media'

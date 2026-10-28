@@ -1,0 +1,23 @@
+name: 'Bebbo content migrate'
+description: 'Migrates articles and the content they reference from a copy of the Bebbo database, with full revision history and translations, keeping the Bebbo IDs.'
+type: module
+package: Migration
+core_version_requirement: ^11
+dependencies:
+  - drupal:block_content
+  - drupal:content_moderation
+  - drupal:content_translation
+  - drupal:file
+  - drupal:language
+  - drupal:media
+  - drupal:menu_link_content
+  - drupal:migrate
+  - drupal:node
+  - drupal:path_alias
+  - drupal:shortcut
+  - drupal:taxonomy
+  - drupal:user
+  - group:group
+  - migrate_plus:migrate_plus
+  - migrate_tools:migrate_tools
+  - tmgmt:tmgmt

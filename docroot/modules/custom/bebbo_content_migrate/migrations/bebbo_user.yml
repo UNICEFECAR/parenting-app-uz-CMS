@@ -1,0 +1,42 @@
+id: bebbo_user
+label: 'Bebbo users referenced by the migrated content'
+migration_tags:
+  - bebbo_content
+# IDs, UUIDs and values are copied as they are on Bebbo. The entities to
+# migrate are chosen by drush bebbo-content-migrate:select. See README.md.
+# Authors, revision authors, file owners and group members, and users 0 and
+# 1 (they exist on every site and are updated here so they are the same as on
+# Bebbo, UUID included). Passwords are copied as hashes.
+source:
+  plugin: bebbo_content_entity
+  entity_type: user
+  database_state_key: bebbo_content_migrate.database
+process:
+  uid: uid
+  uuid: uuid
+  langcode: target_langcode
+  preferred_langcode: preferred_langcode
+  preferred_admin_langcode: preferred_admin_langcode
+  name: name
+  pass: pass
+  mail: mail
+  timezone: timezone
+  status: status
+  created: created
+  changed: changed
+  access: access
+  login: login
+  init: init
+  roles: roles
+  default_langcode: default_langcode
+  allowed_languages: allowed_languages
+  email_tfa_status: email_tfa_status
+  field_receive_content_moderation: field_receive_content_moderation
+  tmgmt_translation_skills: tmgmt_translation_skills
+  user_picture: user_picture
+  feeds_item: feeds_item
+destination:
+  plugin: bebbo_entity_user
+migration_dependencies:
+  required:
+    - bebbo_file

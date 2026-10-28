@@ -1,0 +1,31 @@
+diff --git a/src/Controller/WellKnownController.php b/src/Controller/WellKnownController.php
+index 989665c..8bd2e36 100644
+--- a/src/Controller/WellKnownController.php
++++ b/src/Controller/WellKnownController.php
+@@ -38,6 +38,7 @@ class WellKnownController extends ControllerBase {
+         $item = [
+           'relation' => [
+             'delegate_permission/common.handle_all_urls',
++            'delegate_permission/common.get_login_creds',
+           ],
+           'target' => [
+             'namespace' => 'android_app',
+@@ -140,11 +141,17 @@ class WellKnownController extends ControllerBase {
+               $def_val_arr[trim($key)] = (boolean) trim($val);
+             }
+           }
++          if (!$components_json) {
++            $details_components = [
++              '/' => $applink['paths'] ? $applink['paths'] : '',
++              'comment' => "Matches any URL whose path starts with URL_PATH and instructs the system not to open it as a universal link",
++            ];
++          }
+           $details[] = array_filter([
+             'appID' => $appID,
++            'components' => !$components_json ? [$details_components] : $components_json,
+             'paths' => $applink['paths'] ? explode(PHP_EOL, $applink['paths']) : '',
+             'appIDs' => $applink['appIDs'],
+-            'components' => $components_json ?? '',
+             'defaults' => $def_val_arr ?? '',
+           ]);
+         }

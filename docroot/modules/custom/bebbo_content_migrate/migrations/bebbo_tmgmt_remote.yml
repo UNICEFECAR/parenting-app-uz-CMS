@@ -1,0 +1,31 @@
+id: bebbo_tmgmt_remote
+label: 'Bebbo remote mappings of the migrated translation jobs'
+migration_tags:
+  - bebbo_content
+# IDs, UUIDs and values are copied as they are on Bebbo. The entities to
+# migrate are chosen by drush bebbo-content-migrate:select. See README.md.
+source:
+  plugin: bebbo_content_entity
+  entity_type: tmgmt_remote
+  database_state_key: bebbo_content_migrate.database
+process:
+  trid: trid
+  uuid: uuid
+  tjid: tjid
+  tjiid: tjiid
+  data_item_key: data_item_key
+  remote_identifier_1: remote_identifier_1
+  remote_identifier_2: remote_identifier_2
+  remote_identifier_3: remote_identifier_3
+  remote_url: remote_url
+  word_count: word_count
+  tags_count: tags_count
+  amount: amount
+  currency: currency
+  remote_data: remote_data
+destination:
+  plugin: 'entity:tmgmt_remote'
+migration_dependencies:
+  required:
+    - bebbo_tmgmt_job
+    - bebbo_tmgmt_job_item

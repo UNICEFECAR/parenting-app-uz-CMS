@@ -1,0 +1,29 @@
+id: bebbo_file
+label: 'Bebbo files of the migrated media and users'
+migration_tags:
+  - bebbo_content
+# IDs, UUIDs and values are copied as they are on Bebbo. The entities to
+# migrate are chosen by drush bebbo-content-migrate:select. See README.md.
+# File entities only: the script copies the files themselves.
+source:
+  plugin: bebbo_content_entity
+  entity_type: file
+  database_state_key: bebbo_content_migrate.database
+process:
+  fid: fid
+  uuid: uuid
+  langcode: langcode
+  uid: uid
+  filename: filename
+  uri: uri
+  filemime: filemime
+  filesize: filesize
+  status: status
+  created: created
+  changed: changed
+destination:
+  plugin: 'entity:file'
+# Runs first, before the users: user pictures are image fields, and core's
+# ImageItem::preSave() logs 'Missing file with ID …' for a file that does not
+# exist yet. A file only stores its owner's ID, so the owners can come later.
+migration_dependencies: {  }
